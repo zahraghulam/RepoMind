@@ -4,7 +4,7 @@ Pydantic BaseSettings for RepoMind.
 
  task-10-persistent-jobs
 Supports both Groq (primary, free) and OpenAI (fallback) backends.
-=======
+
 Supports only Groq backend with API Key Rotation support.
 Multiple keys can be provided separated by commas to avoid 429 Rate Limits.
 
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     # ─────────────────────────────────────────────────────────────
     github_token: str | None = None
     github_username: str | None = None
-=======
+
 from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings
 
