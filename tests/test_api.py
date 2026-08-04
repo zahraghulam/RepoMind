@@ -8,7 +8,7 @@ from api.errors import JobNotFoundError
 from api.main import app
 from api.schemas import JobStatus, RunRequest
  task-10-persistent-jobs
-=======
+
 from config.settings import get_settings
 from tools.agent_runner import validate_credentials
 from tools.github_tool import _redact_secret
@@ -61,7 +61,7 @@ def test_job_manager_lifecycle():
  task-10-persistent-jobs
 with pytest.raises(JobNotFoundError):
     job_manager.get("this_job_does_not_exist")
-=======
+
     with pytest.raises(JobNotFoundError):
         job_manager.get("this_job_does_not_exist")
  main
