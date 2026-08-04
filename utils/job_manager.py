@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from pytest import warns
 
 from utils.job_db import get_connection, init_db
-=======
+
 main
 
 
@@ -24,7 +24,7 @@ class JobRecord:
     started_at: datetime | None = None
     finished_at: datetime | None = None
  task-10-persistent-jobs
-=======
+
     branch_name: str = "repomind/auto-fix"
     pr_title: str | None = None
     # Request-scoped credentials — held only in memory for this job's
@@ -39,7 +39,7 @@ class JobRecord:
         if self.started_at is None:
             return None
  task-10-persistent-jobs
-=======
+
 
  main
         end = self.finished_at if self.finished_at is not None else datetime.now(UTC)
@@ -69,7 +69,7 @@ class JobManager:
         job_id = str(uuid.uuid4())
  task-10-persistent-jobs
 
-=======
+
  main
         record = JobRecord(
             job_id=job_id,
@@ -111,7 +111,7 @@ class JobManager:
         conn.commit()
         conn.close()
 
-=======
+
         self._store[job_id] = record
 main
         return job_id
@@ -190,7 +190,7 @@ main
 
         conn.commit()
         conn.close()
-=======
+
         record = self._store.get(job_id)
         if record is None:
             raise JobNotFoundError(job_id)
@@ -246,7 +246,7 @@ main
             "running": 0,
             "completed": 0,
             "failed": 0,
-=======
+
         all_records = list(self._store.values())
 
         return {
