@@ -121,7 +121,7 @@ def test_chain_processes_request():
         session_id="session_123",
         instruction="Do something",
     )
-=======
+
     )
     with patch.object(chain.planner, "plan", return_value=dummy_plan):
         with patch.object(chain.executor, "execute", return_value=dummy_execution):
@@ -151,7 +151,7 @@ def test_chain_processes_request_with_project_map():
         instruction="Do something",
         project_map={"frameworks": ["FastAPI"]},
     )
-=======
+
     with patch.object(chain.planner, "plan", return_value=dummy_plan) as mock_plan:
         with patch.object(chain.executor, "execute", return_value=dummy_execution):
             result = chain.run_with_project_map(
