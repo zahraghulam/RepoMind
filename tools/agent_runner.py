@@ -1,7 +1,6 @@
-"""
-tools/agent_runner.py
+"""tools/agent_runner.py
 
-Replaces the old stub `test_executor.py`.  This is the real entry point that
+Replaces the old stub `test_executor.py`. This is the real entry point that
 `api/routes.py` calls for every job.
 
 Flow:
@@ -19,6 +18,10 @@ import logging
 import tempfile
 from pathlib import Path
 
+ task-10-persistent-jobs
+=======
+import requests
+ main
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from pydantic import SecretStr
@@ -42,7 +45,7 @@ logger = logging.getLogger(__name__)
 _memory = MemoryManager()
 
 
-def _build_tools(repo_path: Path, repo_files: dict[str, str]) -> list[ToolSpec]:
+def _build_tools(repo_path: Path, repo_files: dict[str, str], llm_api_key: str) -> list[ToolSpec]:
     """Build the ToolSpec list that the executor will choose from."""
 
     def code_editor(inputs: dict) -> dict:
@@ -63,13 +66,23 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str]) -> list[ToolSpec]:
 
         applied: list[dict] = []
         for change in raw_changes:
+ task-10-persistent-jobs
             filename = str(change.get("filename", ""))
 
             updated_content = str(change.get("updated_content", ""))
 
             reason = str(change.get("reason", default_reason))
+=======
+            change_filename = str(change.get("filename", ""))
+            updated_content = change.get("updated_content", "")
 
-            if not filename or not updated_content.strip():
+            if not isinstance(updated_content, str):
+                updated_content = str(updated_content)
+
+            change_reason = str(change.get("reason", "Agent change"))
+ main
+
+            if not change_filename or not updated_content.strip():
                 logger.warning("code_editor: skipping change with empty filename or content.")
                 continue
 
@@ -80,7 +93,7 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str]) -> list[ToolSpec]:
                 "update this with",
                 "add your",
                 "insert here",
-            ]
+             ]
             is_placeholder = any(
                 signal.lower() in updated_content.lower() for signal in placeholder_signals
             )
@@ -88,15 +101,25 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str]) -> list[ToolSpec]:
             if is_placeholder or len(updated_content.strip()) < 50:
                 logger.info(
                     "code_editor: placeholder detected for %s — generating real content with LLM.",
+ task-10-persistent-jobs
                     filename,
+=======
+                    change_filename,
+ main
                 )
-                target = repo_path / filename
+                target = repo_path / change_filename
                 current_content = target.read_text(encoding="utf-8") if target.exists() else ""
 
                 settings = get_settings()
                 gen_llm = ChatGroq(
                     model=settings.llm_model,
+ task-10-persistent-jobs
                     api_key=SecretStr(settings.groq_api_key or ""),
+=======
+                    api_key=SecretStr(
+                        llm_api_key
+                    ),  # already rotated/resolved by resolve_llm_credentials()
+ main
                     temperature=0,
                 )
 
@@ -133,21 +156,33 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str]) -> list[ToolSpec]:
                 chain = gen_prompt | gen_llm
                 response = chain.invoke(
                     {
+ task-10-persistent-jobs
                         "filename": filename,
                         "current_content": current_content or "# Empty file",
                         "instruction": reason or "Add docstrings and type hints to all functions",
+=======
+                        "filename": change_filename,
+                        "current_content": current_content or "# Empty file",
+                        "instruction": change_reason
+                        or "Add docstrings and type hints to all functions",
+ main
                     }
                 )
                 content = response.content
 
                 if isinstance(content, str):
                     updated_content = content.strip()
+ task-10-persistent-jobs
                 elif isinstance(content, list):
                     updated_content = "\n".join(
                         part if isinstance(part, str) else str(part) for part in content
                     ).strip()
                 else:
                     updated_content = str(content).strip()
+=======
+                else:
+                    updated_content = "\n".join(str(item) for item in content).strip()
+ main
 
                 if updated_content.startswith("```"):
                     lines = updated_content.split("\n")
@@ -158,9 +193,24 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str]) -> list[ToolSpec]:
             target = repo_path / filename
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(updated_content, encoding="utf-8")
+ task-10-persistent-jobs
             logger.info("code_editor: wrote %s (%d bytes)", filename, len(updated_content))
             applied.append(
                 {"filename": filename, "updated_content": updated_content, "reason": reason}
+=======
+
+            logger.info(
+                "code_editor: wrote %s (%d bytes)",
+                change_filename,
+                len(updated_content),
+            )
+            applied.append(
+                {
+                    "filename": change_filename,
+                    "updated_content": updated_content,
+                    "reason": change_reason,
+                }
+ main
             )
 
         notes = (
@@ -185,6 +235,50 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str]) -> list[ToolSpec]:
     ]
 
 
+def validate_credentials(github_token: str, llm_provider: str, llm_api_key: str) -> None:
+    """
+    Verify GitHub and LLM credentials actually work before starting a job.
+
+    Fails fast with a clear, non-sensitive error message instead of letting
+    the job fail partway through (e.g. after a slow clone).
+
+    Raises:
+        ValueError: If either credential is invalid or unreachable.
+    """
+    # 1. Validate GitHub token via a lightweight authenticated request.
+    try:
+        response = requests.get(
+            "https://api.github.com/user",
+            headers={"Authorization": f"Bearer {github_token}"},
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        raise ValueError(f"Could not reach GitHub API to validate token: {exc}") from None
+
+    if response.status_code == 401:
+        raise ValueError("GitHub token is invalid or expired.")
+    if response.status_code != 200:
+        raise ValueError(f"GitHub token validation failed (status {response.status_code}).")
+
+    # 2. Validate the LLM key with a minimal, cheap call.
+    if llm_provider == "groq":
+        try:
+            probe_llm = ChatGroq(
+                model="llama-3.3-70b-versatile",
+                api_key=SecretStr(llm_api_key),
+                temperature=0,
+            )
+            probe_llm.invoke("ping")
+        except Exception as exc:
+            raise ValueError(
+                f"LLM credential validation failed for provider 'groq': {exc}"
+            ) from None
+    else:
+        # Other providers (openai, gemini) can be validated the same way
+        # once their client construction is added below.
+        logger.info("Skipping live LLM validation for provider '%s' (not yet wired).", llm_provider)
+
+
 def run_agent(
     repo_url: str,
     instruction: str,
@@ -192,9 +286,11 @@ def run_agent(
     branch_name: str = "repomind/auto-fix",
     pr_title_override: str | None = None,
     base_branch: str = "main",
+    github_pat: str | None = None,
+    llm_provider_override: str | None = None,
+    llm_api_key: str | None = None,
 ) -> dict:
-    """
-    Full end-to-end agent run.
+    """Full end-to-end agent run.
 
     Returns:
         {
@@ -205,6 +301,18 @@ def run_agent(
     """
     settings = get_settings()
 
+    # Resolve request-scoped credentials, falling back to server defaults.
+    # Plain strings are held only in local variables for this job's duration
+    # never stored on settings, never logged.
+    resolved_token = settings.resolve_github_token(SecretStr(github_pat) if github_pat else None)
+    resolved_provider, resolved_llm_key = settings.resolve_llm_credentials(
+        llm_provider_override,
+        SecretStr(llm_api_key) if llm_api_key else None,
+    )
+
+    # Validate before doing any real work — fail fast, not partway through.
+    validate_credentials(resolved_token, resolved_provider, resolved_llm_key)
+
     with tempfile.TemporaryDirectory(prefix="repomind_") as tmp_dir:
         repo_path = Path(tmp_dir) / "repo"
 
@@ -212,49 +320,49 @@ def run_agent(
         logger.info("Cloning %s into %s", repo_url, repo_path)
         authenticated_url = repo_url.replace(
             "https://",
-            f"https://{settings.github_token}@",
+            f"https://{resolved_token}@",
         )
         git_repo = clone_repository(authenticated_url, repo_path)
 
-        # 2. Parse repo files
+        # 2. Parse repo files intelligently
         logger.info("Parsing repository files")
-        repo_files_before: dict[str, str] = parse_repository(repo_path)
-        initial_project_map = build_project_map(repo_path)
+        # Pass the instruction as a target hint to prioritize files
+        project_map = build_project_map(repo_path, target_hints=[instruction])
         readme_generated = False
 
-        generated_readme = get_project_readme(initial_project_map)
+        generated_readme = get_project_readme(project_map)
         if generated_readme:
             readme_path = repo_path / "README.md"
             readme_path.write_text(generated_readme, encoding="utf-8")
             logger.info("Generated README.md from repository analysis")
             readme_generated = True
+            # Rebuild map to include the new README
+            project_map = build_project_map(repo_path, target_hints=[instruction])
 
-        project_map = build_project_map(repo_path)
-        repo_files_for_agent: dict[str, str] = parse_repository(repo_path)
-
-        file_context_lines = []
-        for rel_path, content in repo_files_for_agent.items():
-            file_context_lines.append(f"\n### FILE: {rel_path}\n```\n{content}\n```")
-        file_context = "\n".join(file_context_lines)
-
-        enriched_instruction = (
-            f"{instruction}\n\n---\nRepository file tree and contents:\n{file_context}"
-        )
+        # Rely purely on the project_map and memory optimizations
+        repo_files_for_agent = project_map["files"]
+        repo_files_before = repo_files_for_agent.copy()
 
         # 3. Build LLM + tools
         llm = ChatGroq(
             model=settings.llm_model,
+ task-10-persistent-jobs
             api_key=SecretStr(settings.groq_api_key or ""),
+=======
+            api_key=SecretStr(
+                resolved_llm_key
+            ),  # already rotated/resolved by resolve_llm_credentials()
+ main
             temperature=0,
         )
-        tools = _build_tools(repo_path, repo_files_for_agent)
+        tools = _build_tools(repo_path, repo_files_for_agent, resolved_llm_key)
 
         # 4. Run AgentChain
         logger.info("Running AgentChain for session %s", session_id)
         chain = AgentChain(llm=llm, tools=tools, memory=_memory)
         result = chain.run_with_project_map(
             session_id=session_id,
-            instruction=enriched_instruction,
+            instruction=instruction,
             project_map=project_map,
         )
 
@@ -306,11 +414,16 @@ def run_agent(
             instruction=instruction,
             changed_files=changed_file_names,
             diff_summary=per_file_diffs,
+            impact_report=result.impact_report,
         )
 
         logger.info("Opening PR on %s", repo_full_name)
         pr = create_pull_request(
+ task-10-persistent-jobs
             token=settings.github_token or "",
+=======
+            token=resolved_token,
+ main
             repo_full_name=repo_full_name,
             title=pr_title,
             body=pr_body,

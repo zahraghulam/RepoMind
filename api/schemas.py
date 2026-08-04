@@ -1,11 +1,17 @@
+ task-10-persistent-jobs
 from enum import Enum
+=======
+from enum import StrEnum
+
+from pydantic import BaseModel, SecretStr
+ main
 
 from pydantic import BaseModel
 
 # ── Enums ────────────────────────────────────────────────────────────────────
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     queued = "queued"
     running = "running"
     completed = "completed"
@@ -25,6 +31,14 @@ class RunRequest(BaseModel):
     instruction: str  # Plain-English change description
     branch_name: str = "repomind/auto-fix"  # Branch that will be created for the PR
     pr_title: str = "refactor: RepoMind automated change"  # Title of the Pull Request
+
+    # ── Request-scoped credentials (optional) ────────────────────────────────
+    # If not supplied, the server falls back to its own configured defaults
+    # (config.settings.get_settings()). SecretStr prevents these values from
+    # appearing in OpenAPI docs, logs, or accidental repr()/print() calls.
+    github_pat: SecretStr | None = None  # Per-request GitHub PAT, overrides server default
+    llm_provider: str | None = None  # e.g. "groq", "openai", "gemini" — overrides server default
+    llm_api_key: SecretStr | None = None  # Per-request LLM key, overrides server default
 
 
 class RefineRequest(BaseModel):

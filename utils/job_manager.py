@@ -2,10 +2,13 @@ from importlib import reload
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+ task-10-persistent-jobs
 
 from pytest import warns
 
 from utils.job_db import get_connection, init_db
+=======
+main
 
 
 @dataclass
@@ -20,10 +23,25 @@ class JobRecord:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     started_at: datetime | None = None
     finished_at: datetime | None = None
+ task-10-persistent-jobs
+=======
+    branch_name: str = "repomind/auto-fix"
+    pr_title: str | None = None
+    # Request-scoped credentials — held only in memory for this job's
+    # lifetime, never written to disk, and deliberately excluded from
+    # to_dict() so they can never leak via all_jobs()/status endpoints.
+    github_pat: str | None = None
+    llm_provider: str | None = None
+    llm_api_key: str | None = None
+ main
 
     def elapsed_time(self) -> float | None:
         if self.started_at is None:
             return None
+ task-10-persistent-jobs
+=======
+
+ main
         end = self.finished_at if self.finished_at is not None else datetime.now(UTC)
         return (end - self.started_at).total_seconds()
 
@@ -49,12 +67,16 @@ class JobManager:
 
     def create_job(self, repo_url: str, instruction: str) -> str:
         job_id = str(uuid.uuid4())
+ task-10-persistent-jobs
 
+=======
+ main
         record = JobRecord(
             job_id=job_id,
             repo_url=repo_url,
             instruction=instruction,
         )
+ task-10-persistent-jobs
 
         conn = get_connection()
         conn.execute(
@@ -89,11 +111,15 @@ class JobManager:
         conn.commit()
         conn.close()
 
+=======
+        self._store[job_id] = record
+main
         return job_id
 
     def get(self, job_id: str) -> JobRecord:
         from api.errors import JobNotFoundError
 
+ task-10-persistent-jobs
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM jobs WHERE job_id=?",
@@ -164,6 +190,40 @@ class JobManager:
 
         conn.commit()
         conn.close()
+=======
+        record = self._store.get(job_id)
+        if record is None:
+            raise JobNotFoundError(job_id)
+        return record
+
+    def update(
+        self,
+        job_id: str,
+        status: str | None = None,
+        pr_url: str | None = None,
+        diff_summary: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        record = self.get(job_id)
+
+        if status is not None:
+            record.status = status
+
+        if pr_url is not None:
+            record.pr_url = pr_url
+
+        if diff_summary is not None:
+            record.diff_summary = diff_summary
+
+        if error_message is not None:
+            record.error_message = error_message
+
+        if status == "running" and record.started_at is None:
+            record.started_at = datetime.now(UTC)
+
+        if status in ("completed", "failed"):
+            record.finished_at = datetime.now(UTC)
+ main
 
     def all_jobs(self) -> dict:
         conn = get_connection()
@@ -173,6 +233,7 @@ class JobManager:
         return {row["job_id"]: dict(row) for row in rows}
 
     def stats(self) -> dict:
+ task-10-persistent-jobs
         conn = get_connection()
 
         rows = conn.execute("SELECT status, COUNT(*) as count FROM jobs GROUP BY status").fetchall()
@@ -185,6 +246,16 @@ class JobManager:
             "running": 0,
             "completed": 0,
             "failed": 0,
+=======
+        all_records = list(self._store.values())
+
+        return {
+            "total": len(all_records),
+            "queued": sum(1 for r in all_records if r.status == "queued"),
+            "running": sum(1 for r in all_records if r.status == "running"),
+            "completed": sum(1 for r in all_records if r.status == "completed"),
+            "failed": sum(1 for r in all_records if r.status == "failed"),
+ main
         }
 
         for row in rows:
