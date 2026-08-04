@@ -7,7 +7,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
  task-10-persistent-jobs
-=======
+
 
 # 1. Setup Logger for Token Profiling
 logging.basicConfig(level=logging.INFO)
@@ -355,7 +355,7 @@ def _detect_frameworks(files_by_path: dict[str, str]) -> list[str]:
         or any(
  task-10-persistent-jobs
             path in lower_paths for path in ("next.config.js", "next.config.mjs", "next.config.ts")
-=======
+
             path in lower_paths for path in {"next.config.js", "next.config.mjs", "next.config.ts"}
 main
         )
@@ -364,7 +364,7 @@ main
     if "next" in package_json or any(
  task-10-persistent-jobs
         path in lower_paths for path in ("next.config.js", "next.config.mjs", "next.config.ts")
-=======
+
         path in lower_paths for path in {"next.config.js", "next.config.mjs", "next.config.ts"}
  main
     ):
@@ -375,7 +375,7 @@ main
         add("NestJS")
  task-10-persistent-jobs
     if any(token in package_json for token in ('"vue"', "@vue/", "vue-router", "nuxt")):
-=======
+
     if any(token in package_json for token in ("vue", "@vue/", "vue-router", "nuxt")):
  main
         add("Vue")
@@ -384,7 +384,7 @@ main
     if "vite" in package_json or any(
  task-10-persistent-jobs
         path in lower_paths for path in ("vite.config.js", "vite.config.ts", "vite.config.mjs")
-=======
+
         path in lower_paths for path in {"vite.config.js", "vite.config.ts", "vite.config.mjs"}
  main
     ):
@@ -494,7 +494,7 @@ def build_project_map(
  task-10-persistent-jobs
 ) -> dict[str, Any]:
     """Build a structured project map while still collecting file contents."""
-=======
+
     target_hints: list[str] | None = None,
     max_tokens: int = 50000,
 ) -> dict[str, Any]:
@@ -571,8 +571,7 @@ def build_project_map(
     entry_points = _detect_entry_points(list(ordered_files.keys()), repo_root)
     folder_hierarchy = _scan_folder_hierarchy(repo_root, ignored)
  task-10-persistent-jobs
-    has_root_readme = any(path.lower() == "readme.md" for path in files_by_path)
-=======
+
     has_root_readme = any(
         path.lower() == "readme.md" or path.lower() == "readme" for path in files_by_path
     )
@@ -601,7 +600,7 @@ def build_project_map(
         "important_files": sorted(
  task-10-persistent-jobs
             set(important_files), key=lambda item: (_file_priority(item), item)
-=======
+
             set(important_files),
             key=lambda item: (_file_priority(item), item),
 main
