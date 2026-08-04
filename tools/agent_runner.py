@@ -19,7 +19,7 @@ import tempfile
 from pathlib import Path
 
  task-10-persistent-jobs
-=======
+
 import requests
  main
 from langchain_core.prompts import ChatPromptTemplate
@@ -72,7 +72,7 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str], llm_api_key: str) 
             updated_content = str(change.get("updated_content", ""))
 
             reason = str(change.get("reason", default_reason))
-=======
+
             change_filename = str(change.get("filename", ""))
             updated_content = change.get("updated_content", "")
 
@@ -103,7 +103,7 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str], llm_api_key: str) 
                     "code_editor: placeholder detected for %s — generating real content with LLM.",
  task-10-persistent-jobs
                     filename,
-=======
+
                     change_filename,
  main
                 )
@@ -115,7 +115,7 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str], llm_api_key: str) 
                     model=settings.llm_model,
  task-10-persistent-jobs
                     api_key=SecretStr(settings.groq_api_key or ""),
-=======
+
                     api_key=SecretStr(
                         llm_api_key
                     ),  # already rotated/resolved by resolve_llm_credentials()
@@ -160,7 +160,7 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str], llm_api_key: str) 
                         "filename": filename,
                         "current_content": current_content or "# Empty file",
                         "instruction": reason or "Add docstrings and type hints to all functions",
-=======
+
                         "filename": change_filename,
                         "current_content": current_content or "# Empty file",
                         "instruction": change_reason
@@ -179,7 +179,7 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str], llm_api_key: str) 
                     ).strip()
                 else:
                     updated_content = str(content).strip()
-=======
+
                 else:
                     updated_content = "\n".join(str(item) for item in content).strip()
  main
@@ -197,7 +197,7 @@ def _build_tools(repo_path: Path, repo_files: dict[str, str], llm_api_key: str) 
             logger.info("code_editor: wrote %s (%d bytes)", filename, len(updated_content))
             applied.append(
                 {"filename": filename, "updated_content": updated_content, "reason": reason}
-=======
+
 
             logger.info(
                 "code_editor: wrote %s (%d bytes)",
@@ -348,7 +348,7 @@ def run_agent(
             model=settings.llm_model,
  task-10-persistent-jobs
             api_key=SecretStr(settings.groq_api_key or ""),
-=======
+
             api_key=SecretStr(
                 resolved_llm_key
             ),  # already rotated/resolved by resolve_llm_credentials()
@@ -421,7 +421,7 @@ def run_agent(
         pr = create_pull_request(
  task-10-persistent-jobs
             token=settings.github_token or "",
-=======
+
             token=resolved_token,
  main
             repo_full_name=repo_full_name,
