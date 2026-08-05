@@ -4,53 +4,72 @@ config/settings.py
 Pydantic BaseSettings for RepoMind.
 
 Supports both Groq (primary, free) and OpenAI (fallback) backends.
-At least one LLM API key must be provided — startup will fail with a clear
-error if neither is set.
 """
 
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Optional
 
 from pydantic import model_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # ── LLM — Groq (primary, free, fast) ─────────────────────────────────────
-    groq_api_key: Optional[str] = None
+    # ─────────────────────────────────────────────────────────────
+    # LLM - Groq
+    # ─────────────────────────────────────────────────────────────
+    groq_api_key: str | None = None
     llm_model: str = "llama-3.3-70b-versatile"
 
-    # ── LLM — OpenAI (optional fallback) ─────────────────────────────────────
-    openai_api_key: Optional[str] = None
+    # ─────────────────────────────────────────────────────────────
+    # LLM - OpenAI
+    # ─────────────────────────────────────────────────────────────
+    openai_api_key: str | None = None
     openai_model: str = "gpt-4o"
 
-    # ── Plan limits ───────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────
+    # Plan
+    # ─────────────────────────────────────────────────────────────
     max_plan_steps: int = 10
 
-    # ── GitHub ────────────────────────────────────────────────────────────────
-    github_token: str
-    github_username: str
+    # ─────────────────────────────────────────────────────────────
+    # GitHub
+    # ─────────────────────────────────────────────────────────────
+    github_token: str | None = None
+    github_username: str | None = None
 
-    # ── App ───────────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────
+    # App
+    # ─────────────────────────────────────────────────────────────
     app_env: str = "development"
     log_level: str = "INFO"
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+    )
 
     @model_validator(mode="after")
-    def at_least_one_llm_key(self) -> "Settings":
-        """Fail fast at startup if no LLM backend is configured."""
+    def validate_settings(self) -> Settings:
+        """
+        Validate required settings after loading environment variables.
+        """
+
         if not self.groq_api_key and not self.openai_api_key:
-            raise ValueError("At least one LLM API key must be set: GROQ_API_KEY or OPENAI_API_KEY")
+            raise ValueError(
+                "At least one LLM API key must be provided " "(GROQ_API_KEY or OPENAI_API_KEY)."
+            )
+
+        if not self.github_token:
+            raise ValueError("GITHUB_TOKEN is required.")
+
+        if not self.github_username:
+            raise ValueError("GITHUB_USERNAME is required.")
+
         return self
 
     @property
     def active_llm_model(self) -> str:
-        """Return the model name appropriate for the active backend."""
         if self.openai_api_key:
             return self.openai_model
         return self.llm_model
@@ -62,5 +81,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """Return a cached Settings instance (parsed once per process)."""
     return Settings()
