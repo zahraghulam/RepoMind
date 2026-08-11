@@ -1,14 +1,8 @@
- task-10-persistent-jobs
-from enum import Enum
-
-from enum import StrEnum
+from enum import Enum, StrEnum
 
 from pydantic import BaseModel, SecretStr
- main
 
-from pydantic import BaseModel
-
-# ── Enums ────────────────────────────────────────────────────────────────────
+# ── Enums ─────────────────────────────────────────────────────────────
 
 
 class JobStatus(StrEnum):
@@ -18,7 +12,7 @@ class JobStatus(StrEnum):
     failed = "failed"
 
 
-# ── Request Models ────────────────────────────────────────────────────────────
+# ── Request Models ─────────────────────────────────────────────────────
 
 
 class RunRequest(BaseModel):
@@ -51,7 +45,7 @@ class RefineRequest(BaseModel):
     instruction: str  # Follow-up instruction e.g. "also add type hints"
 
 
-# ── Response Models ───────────────────────────────────────────────────────────
+# ── Response Models ─────────────────────────────────────────────────────
 
 
 class JobStatusResponse(BaseModel):
@@ -90,7 +84,7 @@ class RefineResponse(BaseModel):
     message: str | None = None
 
 
-# ── Internal Models ───────────────────────────────────────────────────────────
+# ── Internal Models ─────────────────────────────────────────────────────
 # Used between modules — not exposed directly in API responses
 
 
