@@ -670,7 +670,7 @@ def get_project_readme(project_map: dict[str, Any]) -> str | None:
     """Return generated README content when the repository does not ship one."""
     return project_map.get("generated_readme")
  task-10-persistent-jobs
-=======
+
 
 
 def extract_python_imports(content: str, file_path: str) -> set[str]:
