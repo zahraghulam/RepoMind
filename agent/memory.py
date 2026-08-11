@@ -18,9 +18,6 @@ class SessionState:
     completed_steps: list[str] = field(default_factory=list)
     last_plan: list[str] = field(default_factory=list)
  task-10-persistent-jobs
-
-
-
 def _estimate_message_tokens(message: BaseMessage) -> int:
     """Fast heuristic to estimate tokens in a message (approx 4 chars per token)."""
     content = str(message.content) if message.content else ""
