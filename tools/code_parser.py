@@ -2,16 +2,21 @@ from __future__ import annotations
 
 import ast
 import json
-import logging
 import tomllib
 from pathlib import Path
 from typing import Any
  task-10-persistent-jobs
 
 
+ task-10-persistent-jobs
 # 1. Setup Logger for Token Profiling
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+ main
+
+from utils.logging import get_logger
+
+logger = get_logger("tools.code_parser")
  main
 
 DEFAULT_IGNORED_DIRS = {

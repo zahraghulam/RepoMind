@@ -2,7 +2,6 @@
 FastAPI Routes for RepoMind Agent System
 """
 
-import traceback
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, BackgroundTasks
@@ -37,9 +36,15 @@ from api.schemas import (
  main
 from tools.agent_runner import run_agent
 from utils.job_manager import job_manager
+from utils.logging import get_logger
+from utils.metrics import metrics_collector
 
+task-10-persistent-jobs
 from utils.job_manager import job_manager
 
+
+logger = get_logger("api.routes")
+ main
 router = APIRouter(tags=["Agent"])
 
 
@@ -53,7 +58,7 @@ def process_job(job_id: str) -> None:
         job.status = JobStatus.running.value
         job_manager.update(job)
 
-        # Request-scoped credentials (if the caller supplied any) were stashedon the job record by run().
+        # Request-scoped credentials (if the caller supplied any) were stashed on the job record by run().
         result = run_agent(
             repo_url=job.repo_url,
             instruction=job.instruction,
@@ -72,6 +77,7 @@ def process_job(job_id: str) -> None:
             job.pr_url = pr_url
             job.diff_summary = result.get("summary")
         else:
+ task-10-persistent-jobs
             job.status = JobStatus.failed.value
             job.error_message = (
                 result.get("summary")
@@ -87,7 +93,37 @@ def process_job(job_id: str) -> None:
 
         # Errors from validate_credentials()/github_tool are already redacted
         # at the source, but this is the last line of defense before an
-        # error message becomes visible via GET /status/{job_id}.
+
+            # Agent ran successfully but produced no changes.
+            err_msg = result.get("summary") or "Agent completed but no file changes were made."
+            logger.warning(
+                "Job failed - no file changes generated",
+                extra={
+                    "event": "job_failed_no_changes",
+                    "job_id": job_id,
+                    "summary": result.get("summary"),
+                },
+            )
+            metrics_collector.record_failure("JobNoChanges", err_msg)
+            job_manager.update(
+                job_id,
+                status=JobStatus.failed,
+                error_message=err_msg,
+            )
+
+    except Exception as e:
+        logger.error(
+            "Job execution failed with unhandled exception",
+            exc_info=e,
+            extra={
+                "event": "job_execution_exception",
+                "job_id": job_id,
+                "exception_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+        metrics_collector.record_failure(f"JobException:{type(e).__name__}", str(e))
+ main
         job_manager.update(job_id, status=JobStatus.failed, error_message=str(e))
  main
 
@@ -192,3 +228,11 @@ async def refine(
         status=JobStatus.queued,
         message="Refinement queued — agent will run with full prior context.",
     )
+
+
+@router.get("/metrics", tags=["Monitoring"])
+async def metrics() -> dict:
+    """Return system execution metrics snapshot."""
+    from utils.metrics import metrics_collector
+
+    return metrics_collector.get_metrics_summary()
